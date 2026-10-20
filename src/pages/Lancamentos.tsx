@@ -119,15 +119,12 @@ export function PaginaLancamentos() {
   const salvar = async (valores: ValoresFormulario) => {
     try {
       if (valores.valorCentavos === null) return;
-      const registro: Lancamento = editando
-        ? { ...editando, ...valores, valor: valores.valorCentavos }
-        : {
-            id: 0,
-            ...valores,
-            valor: valores.valorCentavos,
-          };
-      if (editando) await db.lancamentos.put(registro);
-      else await db.lancamentos.add(registro);
+      if (editando) {
+        await db.lancamentos.put({ ...editando, ...valores, valor: valores.valorCentavos });
+      } else {
+        const registro: Omit<Lancamento, "id"> = { ...valores, valor: valores.valorCentavos };
+        await db.lancamentos.add(registro);
+      }
       setEditando(null);
       setCriando(false);
       setErros(null);
