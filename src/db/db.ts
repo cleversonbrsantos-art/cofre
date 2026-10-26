@@ -103,4 +103,18 @@ export async function inicializarBanco(): Promise<void> {
       aporteMensal: 0,
     });
   }
+  // Linha única do orçamento (SPEC 3.2): sem ela, a tela de Orçamento fica
+  // presa em "Carregando..." porque get(1) em tabela vazia resolve undefined.
+  const orcConfig = await db.orcamentoConfig.get(1);
+  if (!orcConfig) {
+    const hoje = new Date();
+    const mesKeyAtual = hoje.getFullYear() * 100 + (hoje.getMonth() + 1);
+    await db.orcamentoConfig.put({
+      id: 1,
+      mesKey: mesKeyAtual,
+      rendaReferencia: 0,
+      atalho: "50/30/20",
+      usarSugestoes: false,
+    });
+  }
 }
