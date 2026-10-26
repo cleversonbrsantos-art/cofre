@@ -40,6 +40,8 @@ const enumClasse = z.enum([
   "Renda fixa",
   "Ações",
   "FIIs",
+  "ETFs",
+  "BDRs",
   "Cripto",
   "Exterior",
   "Outros",

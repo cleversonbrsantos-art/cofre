@@ -18,8 +18,8 @@ import type {
 describe("investimentos — rentabilidade por ativo (4.12)", () => {
   it("R$ = atual − aportado; % = R$ ÷ aportado; % da carteira", () => {
     const ativos: AtivoInvestimento[] = [
-      { id: 1, nome: "CDB", classe: "Renda fixa", totalAportado: 1_000_00, valorAtual: 1_100_00 },
-      { id: 2, nome: "Ações", classe: "Ações", totalAportado: 500_00, valorAtual: 400_00 },
+      { id: 1, nome: "CDB", classe: "Renda fixa", totalAportado: 1_000_00, valorAtual: 1_100_00, quantidade: 10 },
+      { id: 2, nome: "Ações", classe: "Ações", totalAportado: 500_00, valorAtual: 400_00, quantidade: 5 },
     ];
     const r = calcularRentabilidade(ativos);
     expect(r[0].rentabilidadeReais).toBe(100_00);
@@ -30,7 +30,7 @@ describe("investimentos — rentabilidade por ativo (4.12)", () => {
   });
 
   it("aportado 0 → % null", () => {
-    const r = calcularRentabilidade([{ id: 1, nome: "X", classe: "Outros", totalAportado: 0, valorAtual: 50_00 }]);
+    const r = calcularRentabilidade([{ id: 1, nome: "X", classe: "Outros", totalAportado: 0, valorAtual: 50_00, quantidade: 1 }]);
     expect(r[0].rentabilidadePercentual).toBe(null);
     expect(r[0].percentualCarteira).toBe(100);
   });
@@ -38,8 +38,8 @@ describe("investimentos — rentabilidade por ativo (4.12)", () => {
 
 describe("investimentos — alocação por classe (4.12)", () => {
   const ativos: AtivoInvestimento[] = [
-    { id: 1, nome: "CDB", classe: "Renda fixa", totalAportado: 60_000, valorAtual: 60_000 },
-    { id: 2, nome: "Ações", classe: "Ações", totalAportado: 40_000, valorAtual: 40_000 },
+    { id: 1, nome: "CDB", classe: "Renda fixa", totalAportado: 60_000, valorAtual: 60_000, quantidade: 600 },
+    { id: 2, nome: "Ações", classe: "Ações", totalAportado: 40_000, valorAtual: 40_000, quantidade: 400 },
   ];
   const alvos: AlvoAlocacao[] = [
     { id: 1, classe: "Renda fixa", percentual: 50 },
@@ -69,7 +69,7 @@ describe("investimentos — alocação por classe (4.12)", () => {
 
   it("classe com ativo mas sem alvo entra com alvo 0", () => {
     const r = calcularAlocacao(
-      [...ativos, { id: 3, nome: "Cripto", classe: "Cripto", totalAportado: 0, valorAtual: 0 }],
+      [...ativos, { id: 3, nome: "Cripto", classe: "Cripto", totalAportado: 0, valorAtual: 0, quantidade: 0 }],
       alvos,
     );
     const cripto = r.porClasse.find((c) => c.classe === "Cripto");

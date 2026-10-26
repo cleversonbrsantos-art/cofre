@@ -91,6 +91,8 @@ export const CLASSES_INVESTIMENTO: ClasseInvestimento[] = [
   "Renda fixa",
   "Ações",
   "FIIs",
+  "ETFs",
+  "BDRs",
   "Cripto",
   "Exterior",
   "Outros",

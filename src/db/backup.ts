@@ -207,7 +207,12 @@ export async function importarBackup(texto: string): Promise<ResultadoImportacao
       await db.metas.bulkPut(dados.metas);
       await db.reservaConfig.bulkPut(dados.reservaConfig);
       await db.dividas.bulkPut(dados.dividas);
-      await db.ativos.bulkPut(dados.ativos);
+      // Garantir quantidade nos ativos (backup antigo pode não ter)
+      const ativosComQuantidade = dados.ativos.map((a) => ({
+        ...a,
+        quantidade: (a as Record<string, unknown>).quantidade as number ?? 1,
+      })) as Omit<AtivoInvestimento, "id">[];
+      await db.ativos.bulkPut(ativosComQuantidade);
       await db.alvos.bulkPut(dados.alvos);
       await db.bensPassivos.bulkPut(dados.bensPassivos);
       await db.patrimonioHistorico.bulkPut(dados.patrimonioHistorico);

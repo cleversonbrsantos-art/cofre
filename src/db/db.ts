@@ -16,6 +16,7 @@ import type {
   OrcamentoConfig,
   OrcamentoPlano,
   PaymentMethod,
+  Quote,
   Recorrente,
   ReservaConfig,
 } from "../domain/models";
@@ -50,6 +51,7 @@ export interface Tabelas {
   assinaturas: EntityTable<Assinatura, "id">;
   recorrentes: EntityTable<Recorrente, "id">;
   paymentMethods: EntityTable<PaymentMethod, "id">;
+  quotes: EntityTable<Quote, "ticker">;
 }
 
 export const db = new Dexie("cofre") as Dexie & Tabelas;

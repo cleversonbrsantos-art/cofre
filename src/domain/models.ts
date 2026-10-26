@@ -134,6 +134,7 @@ export interface AtivoInvestimento {
   classe: ClasseInvestimento;
   totalAportado: number; // centavos
   valorAtual: number; // centavos
+  quantidade: number; // quantidade de unidades (ex: 100 ações, 0.5 BTC)
 }
 
 export interface AlvoAlocacao {
@@ -182,4 +183,11 @@ export interface Recorrente {
   diaMes: number; // 1-31
   inicio: string | null; // ISO, opcional
   fim: string | null; // ISO, opcional
+}
+
+export interface Quote {
+  ticker: string; // PK
+  price: number; // centavos
+  changePercent: number; // %
+  updatedAt: number; // timestamp ms
 }

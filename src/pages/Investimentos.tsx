@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   Bar,
@@ -12,31 +12,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Accordion } from "../components/ui/accordion";
 import { db } from "../db/db";
 import { useConfirm } from "../hooks/useConfirm";
 import { useToday } from "../hooks/useToday";
 import { Carregando, EstadoVazio } from "../components/PaginaVazia";
-import {
-  calcularAlocacao,
-  calcularPatrimonio,
-  calcularRentabilidade,
-  seriePatrimonio,
-} from "../domain/investimentos";
+import { calcularAlocacao, calcularPatrimonio, seriePatrimonio } from "../domain/investimentos";
 import { formatarBRL, textoParaCentavos } from "../domain/dinheiro";
 import { rotuloMesKey } from "../domain/datas";
-import type { ClasseInvestimento } from "../domain/models";
+import type { ClasseInvestimento, AtivoInvestimento } from "../domain/models";
 import { InvestimentosBens } from "./InvestimentosBens";
+import { SummaryCards } from "../components/investimentos/SummaryCards";
+import { AssetGroup } from "../components/investimentos/AssetGroup";
+import { FormularioAtivo } from "../components/investimentos/FormularioAtivo";
+import { fetchAndCacheQuotes } from "../services/quotes";
 
-const CLASSES: ClasseInvestimento[] = ["Renda fixa", "Ações", "FIIs", "Cripto", "Exterior", "Outros"];
-
-interface FormularioAtivo {
-  nome: string;
-  classe: ClasseInvestimento;
-  aportado: string;
-  atual: string;
-}
-
-const FORM_INICIAL: FormularioAtivo = { nome: "", classe: "Renda fixa", aportado: "", atual: "" };
+const CLASSES: ClasseInvestimento[] = ["Renda fixa", "Ações", "FIIs", "ETFs", "BDRs", "Cripto", "Exterior", "Outros"];
 
 export function PaginaInvestimentos() {
   const { confirmar, dialogo } = useConfirm();
@@ -49,53 +40,66 @@ export function PaginaInvestimentos() {
   const lancamentos = useLiveQuery(async () => await db.lancamentos.toArray(), []);
   const historico = useLiveQuery(async () => await db.patrimonioHistorico.toArray(), []);
 
-  const [form, setForm] = useState<FormularioAtivo>(FORM_INICIAL);
   const [mostrarForm, setMostrarForm] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
   const [novoBem, setNovoBem] = useState({ nome: "", valor: "" });
+  const [quotes, setQuotes] = useState<Map<string, import("../domain/models").Quote | null>>(new Map());
+  const [ativoEditando, setAtivoEditando] = useState<AtivoInvestimento | null>(null);
 
-  if (
+  const carregando =
     ativos === undefined ||
     alvos === undefined ||
     bens === undefined ||
     dividas === undefined ||
     contas === undefined ||
     lancamentos === undefined ||
-    historico === undefined
-  ) {
+    historico === undefined;
+
+  // Buscar cotações quando ativos mudarem
+  useEffect(() => {
+    if (carregando || !ativos || ativos.length === 0) return;
+    let cancelado = false;
+
+    async function carregarQuotes() {
+      const ativosDef = ativos!;
+      const tickers = ativosDef.map((a) => ({ ticker: a.nome, type: a.classe }));
+      const resultado = await fetchAndCacheQuotes(tickers);
+      if (!cancelado) {
+        setQuotes(resultado);
+      }
+    }
+
+    void carregarQuotes();
+    return () => { cancelado = true; };
+  }, [ativos, carregando]);
+
+  // Calcular proventos dos últimos 12 meses
+  const proventos12m = useMemo(() => {
+    if (carregando || !lancamentos || !ativos) return 0;
+    const hojeDate = new Date();
+    const dozeMesesAtras = new Date(hojeDate.getFullYear(), hojeDate.getMonth() - 12, 1);
+    const ativosNomes = new Set(ativos.map((a) => a.nome.toUpperCase()));
+
+    return lancamentos
+      .filter((l) => {
+        const dataLanc = new Date(l.data);
+        return (
+          dataLanc >= dozeMesesAtras &&
+          l.status === "Pago" &&
+          l.categoriaId !== null &&
+          ativosNomes.has(l.descricao.toUpperCase())
+        );
+      })
+      .reduce((s, l) => s + l.valor, 0);
+  }, [lancamentos, ativos, carregando]);
+
+  if (carregando) {
     return <Carregando />;
   }
 
-  const rentabilidades = calcularRentabilidade(ativos);
   const alocacao = calcularAlocacao(ativos, alvos);
   const patrimonio = calcularPatrimonio(contas, lancamentos, bens, dividas);
   const serie = seriePatrimonio(historico);
-
-  const salvarAtivo = async () => {
-    const aportado = textoParaCentavos(form.aportado);
-    const atual = textoParaCentavos(form.atual);
-    if (form.nome.trim() === "") {
-      setErroForm("Informe o nome do ativo.");
-      return;
-    }
-    if (aportado === null || aportado < 0 || atual === null || atual < 0) {
-      setErroForm("Informe valores válidos (não negativos).");
-      return;
-    }
-    await db.ativos.add({
-      nome: form.nome.trim(),
-      classe: form.classe,
-      totalAportado: aportado,
-      valorAtual: atual,
-    });
-    setForm(FORM_INICIAL);
-    setMostrarForm(false);
-    setErroForm(null);
-  };
-
-  const excluirAtivo = (id: number, nome: string) => {
-    confirmar("Excluir ativo", `Excluir o ativo "${nome}"?`, () => void db.ativos.delete(id));
-  };
 
   const salvarAlvo = async (classe: string, percentual: number) => {
     const existente = alvos.find((a) => a.classe === classe);
@@ -130,27 +134,51 @@ export function PaginaInvestimentos() {
     confirmar("Excluir registro do histórico", "Excluir este registro do histórico de patrimônio?", () => void db.patrimonioHistorico.delete(id));
   };
 
-  // gráfico 11: alocação atual × alvo
+  const salvarAtivo = async (ativo: Omit<AtivoInvestimento, "id">) => {
+    if (ativoEditando) {
+      await db.ativos.update(ativoEditando.id, ativo);
+    } else {
+      await db.ativos.add(ativo);
+    }
+    setMostrarForm(false);
+    setAtivoEditando(null);
+    setErroForm(null);
+  };
+
+  const editarAtivo = (ativo: AtivoInvestimento) => {
+    setAtivoEditando(ativo);
+    setMostrarForm(true);
+  };
+
+  const excluirAtivo = (ativo: AtivoInvestimento) => {
+    confirmar("Excluir ativo", `Excluir ${ativo.nome}?`, () => void db.ativos.delete(ativo.id));
+  };
+
+  // Gráfico 11: alocação atual × alvo
   const dadosAlocacao = alocacao.porClasse.map((c) => ({
     classe: c.classe,
     "Atual %": c.percentualAtual === null ? 0 : Math.round(c.percentualAtual * 10) / 10,
     "Alvo %": c.percentualAlvo,
   }));
 
-  // gráfico 12: evolução do patrimônio
+  // Gráfico 12: evolução do patrimônio
   const dadosPatrimonio = serie.map((p) => ({
     mes: rotuloMesKey(p.mesKey).replace(" de ", "/"),
     "Patrimônio líquido": p.patrimonio / 100,
   }));
 
+  const handleOpenLancamentos = (ativo: AtivoInvestimento) => {
+    // TODO: Abrir modal/painel lateral com FormularioLancamento focado no ativo
+    alert(`Abrir lançamentos para ${ativo.nome} - TODO: implementar modal`);
+  };
+
   return (
     <section>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
-          <h1 className="text-xl font-semibold">Investimentos e patrimônio</h1>
+          <h1 className="text-xl font-semibold">Investimentos</h1>
           <p className="text-sm text-[var(--cor-texto-suave)] num">
-            Carteira: {formatarBRL(alocacao.totalCarteira)} · PL: {formatarBRL(patrimonio.patrimonioLiquido)} (ativos{" "}
-            {formatarBRL(patrimonio.ativos)} − passivos {formatarBRL(patrimonio.passivos)})
+            Carteira: {formatarBRL(alocacao.totalCarteira)} · PL: {formatarBRL(patrimonio.patrimonioLiquido)}
           </p>
         </div>
         <button
@@ -172,87 +200,49 @@ export function PaginaInvestimentos() {
       )}
 
       {mostrarForm && (
-        <div className="cartao p-4 mb-4" data-testid="formulario-ativo">
-          <h2 className="font-semibold text-sm mb-3">Novo ativo</h2>
-          {erroForm && (
-            <p className="text-sm mb-3" style={{ color: "var(--cor-rosa)" }} role="alert">
-              {erroForm}
-            </p>
-          )}
-          <div className="grid md:grid-cols-4 gap-3">
-            <div>
-              <label className="rotulo" htmlFor="in-nome">Nome</label>
-              <input id="in-nome" className="entrada" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-            </div>
-            <div>
-              <label className="rotulo" htmlFor="in-classe">Classe</label>
-              <select id="in-classe" className="entrada" value={form.classe} onChange={(e) => setForm({ ...form, classe: e.target.value as ClasseInvestimento })}>
-                {CLASSES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="rotulo" htmlFor="in-aportado">Total aportado (R$)</label>
-              <input id="in-aportado" className="entrada num" inputMode="decimal" value={form.aportado} onChange={(e) => setForm({ ...form, aportado: e.target.value })} placeholder="0,00" />
-            </div>
-            <div>
-              <label className="rotulo" htmlFor="in-atual">Valor atual (R$)</label>
-              <input id="in-atual" className="entrada num" inputMode="decimal" value={form.atual} onChange={(e) => setForm({ ...form, atual: e.target.value })} placeholder="0,00" />
-            </div>
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button type="button" className="botao botao-primario" onClick={() => void salvarAtivo()}>Salvar ativo</button>
-            <button type="button" className="botao botao-secundario" onClick={() => { setForm(FORM_INICIAL); setMostrarForm(false); setErroForm(null); }}>Cancelar</button>
-          </div>
-        </div>
+        <FormularioAtivo
+          onSalvar={salvarAtivo}
+          onCancelar={() => {
+            setMostrarForm(false);
+            setAtivoEditando(null);
+            setErroForm(null);
+          }}
+          erro={erroForm}
+          ativoEditando={ativoEditando}
+        />
       )}
+
+      {/* Summary Cards */}
+      <SummaryCards
+        ativos={ativos}
+        bens={bens}
+        quotes={quotes}
+        proventos12m={proventos12m}
+      />
 
       {ativos.length === 0 && alvos.length === 0 && (
         <EstadoVazio mensagem="Nenhum ativo cadastrado. Registre a carteira e defina alvos por classe para acompanhar a alocação e o patrimônio." />
       )}
 
+      {/* Accordions por classe */}
       {ativos.length > 0 && (
-        <div className="cartao overflow-x-auto mb-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-[var(--cor-texto-suave)] border-b">
-                <th className="py-2 px-3">Ativo</th>
-                <th className="py-2 px-3">Classe</th>
-                <th className="py-2 px-3 text-right">Aportado</th>
-                <th className="py-2 px-3 text-right">Valor atual</th>
-                <th className="py-2 px-3 text-right">Rentabilidade R$</th>
-                <th className="py-2 px-3 text-right">Rentabilidade %</th>
-                <th className="py-2 px-3 text-right">% da carteira</th>
-                <th className="py-2 px-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {rentabilidades.map((r) => (
-                <tr key={r.ativo.id} className="border-b last:border-0">
-                  <td className="py-1.5 px-3">{r.ativo.nome}</td>
-                  <td className="py-1.5 px-3">{r.ativo.classe}</td>
-                  <td className="py-1.5 px-3 text-right num">{formatarBRL(r.ativo.totalAportado)}</td>
-                  <td className="py-1.5 px-3 text-right num">{formatarBRL(r.ativo.valorAtual)}</td>
-                  <td className="py-1.5 px-3 text-right num" style={{ color: r.rentabilidadeReais >= 0 ? "var(--cor-verde)" : "var(--cor-rosa)" }}>
-                    {formatarBRL(r.rentabilidadeReais)}
-                  </td>
-                  <td className="py-1.5 px-3 text-right num">
-                    {r.rentabilidadePercentual === null ? "—" : `${r.rentabilidadePercentual.toFixed(1).replace(".", ",")}%`}
-                  </td>
-                  <td className="py-1.5 px-3 text-right num">
-                    {r.percentualCarteira === null ? "—" : `${r.percentualCarteira.toFixed(1).replace(".", ",")}%`}
-                  </td>
-                  <td className="py-1.5 px-3">
-                    <button type="button" className="botao botao-secundario text-xs" onClick={() => excluirAtivo(r.ativo.id, r.ativo.nome)}>
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Accordion className="space-y-2 mb-4">
+          {CLASSES.map((classe) => {
+            const ativosDaClasse = ativos.filter((a) => a.classe === classe);
+            if (ativosDaClasse.length === 0) return null;
+            return (
+              <AssetGroup
+                key={classe}
+                classe={classe}
+                ativos={ativosDaClasse}
+                quotes={quotes}
+                onOpenLancamentos={handleOpenLancamentos}
+                onEditarAtivo={editarAtivo}
+                onExcluirAtivo={excluirAtivo}
+              />
+            );
+          })}
+        </Accordion>
       )}
 
       {alocacao.porClasse.length > 0 && (

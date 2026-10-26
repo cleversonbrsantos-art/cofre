@@ -52,6 +52,8 @@ export type ClasseInvestimento =
   | "Renda fixa"
   | "Ações"
   | "FIIs"
+  | "ETFs"
+  | "BDRs"
   | "Cripto"
   | "Exterior"
   | "Outros";

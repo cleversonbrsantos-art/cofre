@@ -349,11 +349,11 @@ export async function carregarDadosExemplo(db: Db): Promise<void> {
 
       // ---- Investimentos e alvos
       await db.ativos.bulkAdd([
-        { nome: "CDB liquidez diária", classe: "Renda fixa", totalAportado: 1500000, valorAtual: 1620000 },
-        { nome: "Tesouro Selic", classe: "Renda fixa", totalAportado: 800000, valorAtual: 842000 },
-        { nome: "ETF ações Brasil", classe: "Ações", totalAportado: 500000, valorAtual: 565000 },
-        { nome: "FII shoppings", classe: "FIIs", totalAportado: 300000, valorAtual: 318000 },
-        { nome: "Bitcoin", classe: "Cripto", totalAportado: 150000, valorAtual: 189000 },
+        { nome: "CDB liquidez diária", classe: "Renda fixa", totalAportado: 1500000, valorAtual: 1620000, quantidade: 150 },
+        { nome: "Tesouro Selic", classe: "Renda fixa", totalAportado: 800000, valorAtual: 842000, quantidade: 80 },
+        { nome: "ETF ações Brasil", classe: "Ações", totalAportado: 500000, valorAtual: 565000, quantidade: 50 },
+        { nome: "FII shoppings", classe: "FIIs", totalAportado: 300000, valorAtual: 318000, quantidade: 30 },
+        { nome: "Bitcoin", classe: "Cripto", totalAportado: 150000, valorAtual: 189000, quantidade: 0.5 },
       ]);
       await db.alvos.bulkAdd([
         { classe: "Renda fixa", percentual: 60 },
