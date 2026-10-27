@@ -191,3 +191,14 @@ export interface Quote {
   changePercent: number; // %
   updatedAt: number; // timestamp ms
 }
+
+export interface Dividend {
+  id: string; // PK composta: `${ticker}|${exDate}`
+  ticker: string;
+  type: string; // "Acao" | "FII" | "BDR" | etc.
+  amount: number; // centavos por cota
+  exDate: string; // ISO YYYY-MM-DD
+  paymentDate: string; // ISO YYYY-MM-DD
+  status: "Pago" | "A Receber";
+  updatedAt: number; // timestamp ms
+}

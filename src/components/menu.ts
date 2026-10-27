@@ -19,6 +19,7 @@ export const ITENS_MENU: ItemMenu[] = [
   { rota: "/reserva", rotulo: "Reserva", curto: "Reserva" },
   { rota: "/dividas", rotulo: "Dívidas", curto: "Dív." },
   { rota: "/investimentos", rotulo: "Investimentos", curto: "Inv." },
+  { rota: "/proventos", rotulo: "Proventos", curto: "Prov." },
   { rota: "/contas-a-pagar", rotulo: "Contas a pagar", curto: "A pagar" },
   { rota: "/assinaturas", rotulo: "Assinaturas", curto: "Assin." },
   { rota: "/simuladores", rotulo: "Simuladores", curto: "Simul." },

@@ -16,6 +16,7 @@ import { PaginaMetas } from "./pages/Metas";
 import { PaginaReserva } from "./pages/Reserva";
 import { PaginaDividas } from "./pages/Dividas";
 import { PaginaInvestimentos } from "./pages/Investimentos";
+import { PaginaProventos } from "./pages/Proventos";
 import { PaginaContasAPagar } from "./pages/ContasAPagar";
 import { PaginaAssinaturas } from "./pages/Assinaturas";
 import { PaginaSimuladores } from "./pages/Simuladores";
@@ -51,6 +52,7 @@ export function App() {
           <Route path="/reserva" element={<PaginaReserva />} />
           <Route path="/dividas" element={<PaginaDividas />} />
           <Route path="/investimentos" element={<PaginaInvestimentos />} />
+          <Route path="/proventos" element={<PaginaProventos />} />
           <Route path="/contas-a-pagar" element={<PaginaContasAPagar />} />
           <Route path="/assinaturas" element={<PaginaAssinaturas />} />
           <Route path="/simuladores" element={<PaginaSimuladores />} />

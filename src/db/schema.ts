@@ -7,6 +7,7 @@ import { FORMAS_PAGAMENTO_PADRAO } from "../config/padroes";
  * e cria `paymentMethods`, preenchida com as 8 formas padrão quando vazia.
  * Versão 3 (SPEC 4): adiciona tabela `quotes` para cache de cotações em tempo real.
  * Versão 4 (SPEC 5.1): adiciona campo `quantidade` à tabela `ativos`.
+ * Versão 5 (SPEC 7): adiciona tabela `dividends` para cache de proventos.
  */
 export function defineSchema(instance: Dexie): void {
   instance.version(1).stores({
@@ -71,4 +72,8 @@ export function defineSchema(instance: Dexie): void {
         }
       });
     });
+
+  instance.version(5).stores({
+    dividends: "id",
+  });
 }

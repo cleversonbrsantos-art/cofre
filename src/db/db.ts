@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from "dexie";
+import Dexie, { type EntityTable, type Table } from "dexie";
 import type {
   AlvoAlocacao,
   Assinatura,
@@ -10,6 +10,7 @@ import type {
   Conta,
   ContaPagar,
   Divida,
+  Dividend,
   HistoricoPatrimonio,
   Lancamento,
   Meta,
@@ -52,6 +53,7 @@ export interface Tabelas {
   recorrentes: EntityTable<Recorrente, "id">;
   paymentMethods: EntityTable<PaymentMethod, "id">;
   quotes: EntityTable<Quote, "ticker">;
+  dividends: Table<Dividend, string>;
 }
 
 export const db = new Dexie("cofre") as Dexie & Tabelas;
